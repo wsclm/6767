@@ -1,0 +1,28 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+jobs:
+  build:
+    # 固定 ubuntu-24.04：ubuntu-latest 会在 2026-10-19 起迁移到新的 Ubuntu 镜像（会弹迁移通知），
+    # 固定版本后构建环境不再变化，也不再出现该通知。
+    runs-on: ubuntu-24.04
+    steps:
+      # 下面几个 action 都已升级到运行在 Node.js 24 的版本，不再出现 “Node.js 20 已被弃用” 的警告
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      # GitHub 的 ubuntu 镜像已预装 Android SDK，不再使用 setup-android（它在 sdkmanager 安装 tools 包时会失败）
+      - name: Accept Android licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: 8.7
+      - run: gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v7
+        with:
+          name: CpsFloat-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
